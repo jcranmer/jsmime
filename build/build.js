@@ -5,6 +5,7 @@ var fs = require('fs'),
     distPath = path.join(distDir, 'jsmime.js'),
     defineRegExp = /define\(/,
     modules = [
+      'base64',
       'mimeutils',
       'structuredHeaders',
       'headerparser',
