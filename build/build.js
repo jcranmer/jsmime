@@ -11,6 +11,7 @@ var fs = require('fs'),
       'headerparser',
       'mimeparser',
       'headeremitter',
+      'mimeemitter',
       'jsmime'
     ],
     pre = fs.readFileSync(path.join(dir, 'pre.txt'), 'utf8'),

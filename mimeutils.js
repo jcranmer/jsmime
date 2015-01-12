@@ -113,6 +113,35 @@ function quoteIfNeeded(text, qchars) {
   return text;
 }
 
+function validateEmitterOptions(options) {
+  function clamp(value, min, max) {
+    if (value < min)
+      return min;
+    if (value > max)
+      return max;
+    return value;
+  }
+  let result = {
+    softMargin: 78,
+    hardMargin: 332,
+    useASCII: true,
+    allowBinary: false,
+    allow8Bit: true,
+  };
+  if ('softMargin' in options)
+    result.softMargin = clamp(options.softMargin, 30, 900);
+  if ('hardMargin' in options)
+    result.hardMargin = clamp(options.hardMargin, result.softMargin, 998);
+  if ('useASCII' in options)
+    result.useASCII = !!options.useASCII;
+  if ('allowBinary' in options)
+    result.allowBinary = !!options.allowBinary;
+  if ('allow8Bit' in options)
+    result.allow8Bit = !!options.allow8Bit;
+
+  return result;
+}
+
 return {
   decode_base64: decode_base64,
   decode_qp: decode_qp,
@@ -120,5 +149,6 @@ return {
   quoteIfNeeded: quoteIfNeeded,
   stringToTypedArray: stringToTypedArray,
   typedArrayToString: typedArrayToString,
+  validateEmitterOptions: validateEmitterOptions,
 };
 });
