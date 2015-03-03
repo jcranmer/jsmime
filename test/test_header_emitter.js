@@ -305,6 +305,105 @@ suite('headeremitter', function () {
       assert.equal(now.getTime() - now.getMilliseconds(), reparsed.getTime());
     });
   });
+
+  /**
+     * Test addDate method when displayUTC flag is set. This is to support add-ons which dont want 
+     * emails to contain TimeStamp information when email is sent. For example, Torbirdy add-on doesnt 
+     * want timestamp to be shown as it can leak the user location.
+     */
+  suite("addDateAsUTCOnly", function () {
+    let handler = {
+      reset: function (expected) {
+        this.output = '';
+        this.expected = expected;
+      },
+      deliverData: function (data) { this.output += data; },
+      deliverEOF: function () {
+        assert.equal(this.output, this.expected + '\r\n');
+      }
+    };
+    let header_tests = [
+      ["2000-01-01T00:00:00Z", "Sat, 1 Jan 2000 00:00:00 +0000"],
+      ["2000-02-01T00:00:00Z", "Tue, 1 Feb 2000 00:00:00 +0000"],
+      ["2000-03-01T00:00:00Z", "Wed, 1 Mar 2000 00:00:00 +0000"],
+      ["2000-04-01T00:00:00Z", "Sat, 1 Apr 2000 00:00:00 +0000"],
+      ["2000-05-01T00:00:00Z", "Mon, 1 May 2000 00:00:00 +0000"],
+      ["2000-06-01T00:00:00Z", "Thu, 1 Jun 2000 00:00:00 +0000"],
+      ["2000-07-01T00:00:00Z", "Sat, 1 Jul 2000 00:00:00 +0000"],
+      ["2000-08-01T00:00:00Z", "Tue, 1 Aug 2000 00:00:00 +0000"],
+      ["2000-09-01T00:00:00Z", "Fri, 1 Sep 2000 00:00:00 +0000"],
+      ["2000-10-01T00:00:00Z", "Sun, 1 Oct 2000 00:00:00 +0000"],
+      ["2000-11-01T00:00:00Z", "Wed, 1 Nov 2000 00:00:00 +0000"],
+      ["2000-12-01T00:00:00Z", "Fri, 1 Dec 2000 00:00:00 +0000"],
+
+      // Test timezone offsets
+      ["2000-06-01T12:00:00Z", "Thu, 1 Jun 2000 12:00:00 +0000"],
+      ["2000-06-01T12:00:00+0100", "Thu, 1 Jun 2000 11:00:00 +0000"],
+      ["2000-06-01T12:00:00+0130", "Thu, 1 Jun 2000 10:30:00 +0000"],
+      ["2000-06-01T12:00:00-0100", "Thu, 1 Jun 2000 13:00:00 +0000"],
+      ["2000-06-01T12:00:00-0130", "Thu, 1 Jun 2000 13:30:00 +0000"],
+      ["2000-06-01T12:00:00+1345", "Wed, 31 May 2000 22:15:00 +0000"],
+      ["2000-06-01T12:00:00-1200", "Fri, 2 Jun 2000 00:00:00 +0000"],
+      ["2000-06-01T12:00:00+1337", "Wed, 31 May 2000 22:23:00 +0000"],
+      ["2000-06-01T12:00:00+0101", "Thu, 1 Jun 2000 10:59:00 +0000"],
+      ["2000-06-01T12:00:00-1337", "Fri, 2 Jun 2000 01:37:00 +0000"],
+
+      //Some new cases with respect to changing Timezone to UTC 
+
+      // Trying change of year conversion
+      ["2000-12-31T12:00:00-1200", "Mon, 1 Jan 2001 00:00:00 +0000"],
+      ["2001-01-01T00:00:00+1200", "Sun, 31 Dec 2000 12:00:00 +0000"],
+
+      // Trying leap year conversion
+      ["2000-02-28T12:00:00-1200", "Tue, 29 Feb 2000 00:00:00 +0000"],
+      ["2000-03-01T00:00:00+1200", "Tue, 29 Feb 2000 12:00:00 +0000"],
+
+      // Trying non-leap year conversion
+      ["2001-02-28T12:00:00-1200", "Thu, 1 Mar 2001 00:00:00 +0000"],
+      ["2001-03-01T00:00:00+1200", "Wed, 28 Feb 2001 12:00:00 +0000"],
+
+      // Try some varying hour, minute, and second amounts, to double-check
+      // padding and time dates.
+      ["2000-06-01T01:02:03Z", "Thu, 1 Jun 2000 01:02:03 +0000"],
+      ["2000-06-01T23:13:17Z", "Thu, 1 Jun 2000 23:13:17 +0000"],
+      ["2000-06-01T00:05:04Z", "Thu, 1 Jun 2000 00:05:04 +0000"],
+      ["2000-06-01T23:59:59Z", "Thu, 1 Jun 2000 23:59:59 +0000"],
+      ["2000-06-01T13:17:40Z", "Thu, 1 Jun 2000 13:17:40 +0000"],
+      ["2000-06-01T11:15:34Z", "Thu, 1 Jun 2000 11:15:34 +0000"],
+      ["2000-06-01T04:09:09Z", "Thu, 1 Jun 2000 04:09:09 +0000"],
+      ["2000-06-01T04:10:10Z", "Thu, 1 Jun 2000 04:10:10 +0000"],
+      ["2000-06-01T09:13:17Z", "Thu, 1 Jun 2000 09:13:17 +0000"],
+      ["2000-06-01T13:12:14Z", "Thu, 1 Jun 2000 13:12:14 +0000"],
+      ["2000-06-01T14:16:48Z", "Thu, 1 Jun 2000 14:16:48 +0000"],
+
+      // Try varying month, date, and year values.
+      ["2000-01-31T00:00:00Z", "Mon, 31 Jan 2000 00:00:00 +0000"],
+      ["2000-02-28T00:00:00Z", "Mon, 28 Feb 2000 00:00:00 +0000"],
+      ["2000-02-29T00:00:00Z", "Tue, 29 Feb 2000 00:00:00 +0000"],
+      ["2001-02-28T00:00:00Z", "Wed, 28 Feb 2001 00:00:00 +0000"],
+      ["2000-03-31T00:00:00Z", "Fri, 31 Mar 2000 00:00:00 +0000"],
+      ["2000-04-30T00:00:00Z", "Sun, 30 Apr 2000 00:00:00 +0000"],
+      ["2000-05-31T00:00:00Z", "Wed, 31 May 2000 00:00:00 +0000"],
+      ["2000-06-30T00:00:00Z", "Fri, 30 Jun 2000 00:00:00 +0000"],
+      ["2000-07-31T00:00:00Z", "Mon, 31 Jul 2000 00:00:00 +0000"],
+      ["2000-08-31T00:00:00Z", "Thu, 31 Aug 2000 00:00:00 +0000"],
+      ["2000-09-30T00:00:00Z", "Sat, 30 Sep 2000 00:00:00 +0000"],
+      ["2000-10-31T00:00:00Z", "Tue, 31 Oct 2000 00:00:00 +0000"],
+      ["2000-11-30T00:00:00Z", "Thu, 30 Nov 2000 00:00:00 +0000"],
+      ["2000-12-31T00:00:00Z", "Sun, 31 Dec 2000 00:00:00 +0000"],
+      ["1900-01-01T00:00:00Z", "Mon, 1 Jan 1900 00:00:00 +0000"],
+      ["9999-12-31T23:59:59Z", "Fri, 31 Dec 9999 23:59:59 +0000"],
+    ];
+    header_tests.forEach(function (data) {
+      arrayTest(data, function () {
+        let emitter = headeremitter.makeStreamingEmitter(handler, { useOnlyUTC: true });
+        handler.reset(data[1]);
+        emitter.addDate(new MockDate(data[0]));
+        emitter.finish(true);
+      });
+    });
+  });
+
   suite("addParameter", function () {
     let handler = {
       reset: function (expected) {

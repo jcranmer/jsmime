@@ -72,10 +72,17 @@ function clamp(value, min, max, def) {
  *   @param [options.useASCII=true] {Boolean}
  *     If true, then RFC 2047 and RFC 2231 encoding of headers will be performed
  *     as needed to retain headers as ASCII.
+ *   @param [options.useOnlyUTC=true] {Boolean}
+ *     If true, then date added in header is always in UTC. This is to provide 
+ *     user location privacy by not revealing Timezone location.
  */
 function HeaderEmitter(handler, options) {
   /// The inferred value of options.useASCII
   this._useASCII = options.useASCII === undefined ? true : options.useASCII;
+
+  /// The inferred value of options.useOnlyUTC
+  this._useOnlyUTC = options.useOnlyUTC === undefined ? false : options.useOnlyUTC;
+
   /// The handler to use.
   this._handler = handler;
   /**
@@ -728,26 +735,54 @@ HeaderEmitter.prototype.addDate = function (date) {
   if (date.getFullYear() < 1900 || date.getFullYear() > 9999)
     throw new Error("Date year is out of encodable range");
 
-  // Start by computing the timezone offset for a day. We lack a good format, so
-  // the the 0-padding is done by hand. Note that the tzoffset we output is in
-  // the form ±hhmm, so we need to separate the offset (in minutes) into an hour
-  // and minute pair.
-  let tzOffset = date.getTimezoneOffset();
-  let tzOffHours = Math.abs(Math.trunc(tzOffset / 60));
-  let tzOffMinutes = Math.abs(tzOffset) % 60;
-  let tzOffsetStr = (tzOffset > 0 ? "-" : "+") +
-    padTo2Digits(tzOffHours) + padTo2Digits(tzOffMinutes);
+  let day = "", dDate = "",  month = "", fullYear = "", hours = "", 
+      minutes = "", seconds = "", tzOffsetStr = ""
+
+  //handle OnlyUTC based date pref
+  if (this._useOnlyUTC){
+  
+    day = date.getUTCDay();
+    dDate = date.getUTCDate();
+    month = date.getUTCMonth();
+    fullYear = date.getUTCFullYear(); 
+    hours = date.getUTCHours();
+    minutes = date.getUTCMinutes();
+    seconds = date.getUTCSeconds();
+
+    // Because we are setting time corresponding to UTC
+    tzOffsetStr = "+0000";
+
+  } else {
+
+    // Start by computing the timezone offset for a day. We lack a good format, so
+    // the the 0-padding is done by hand. Note that the tzoffset we output is in
+    // the form ±hhmm, so we need to separate the offset (in minutes) into an hour
+    // and minute pair.
+    let tzOffset = date.getTimezoneOffset();
+    let tzOffHours = Math.abs(Math.trunc(tzOffset / 60));
+    let tzOffMinutes = Math.abs(tzOffset) % 60;
+    
+    tzOffsetStr = (tzOffset > 0 ? "-" : "+") +
+      padTo2Digits(tzOffHours) + padTo2Digits(tzOffMinutes);
+
+    day = date.getDay();
+    dDate = date.getDate();
+    month = date.getMonth();
+    fullYear = date.getFullYear(); 
+    hours = date.getHours();
+    minutes = date.getMinutes();
+    seconds = date.getSeconds();
+  }
 
   // Convert the day-time figure into a single value to avoid unwanted line
   // breaks in the middle.
-  let dayTime = [
-    kDaysOfWeek[date.getDay()] + ",",
-    date.getDate(),
-    mimeutils.kMonthNames[date.getMonth()],
-    date.getFullYear(),
-    padTo2Digits(date.getHours()) + ":" +
-      padTo2Digits(date.getMinutes()) + ":" +
-      padTo2Digits(date.getSeconds()),
+  let dayTime = [ kDaysOfWeek[day] + ",",
+    dDate,
+    mimeutils.kMonthNames[month],
+    fullYear,
+    padTo2Digits(hours) + ":" +
+      padTo2Digits(minutes) + ":" +
+      padTo2Digits(seconds),
     tzOffsetStr
   ].join(" ");
   this.addText(dayTime, false);
