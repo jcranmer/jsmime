@@ -3,12 +3,21 @@
 <head>
   <meta charset="UTF-8"/>
   <link rel="stylesheet" href="../mocha.css" />
+  <script src="../../punycode.js"></script>
+  <script src="../../idna-map.js"></script>
+  <script src="../../uts46.js"></script>
   <script src="../mocha.js"></script>
   <script src="../chai.js"></script>
   <script src="../node_fs_shim.js"></script>
   <script src="../parse_tests.js"></script>
   <script src="../../../dist/jsmime.js" type="text/javascript;version=1.8"></script>
   <script>
+    URL.domainToASCII = function (domain) {
+      return uts46.toAscii(domain);
+    };
+    URL.domainToUnicode = function (domain) {
+      return uts46.toUnicode(domain);
+    };
     mocha.setup('tdd');
     var assert = chai.assert;
     var lastdef = undefined;

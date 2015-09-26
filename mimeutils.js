@@ -83,10 +83,39 @@ function typedArrayToString(buffer) {
 const kMonthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug",
   "Sep", "Oct", "Nov", "Dec"];
 
+/**
+ * If a string has a set of characters that can only appear quoted, quote the
+ * string. Otherwise, return the original string. This does not try to quote
+ * strings that already look quoted.
+ *
+ * @param text {String} The text to possibly quote.
+ * @param qchars {String} A set of characters that require a quoted string.
+ * @return {String} The text after quoting if necessary.
+ */
+function quoteIfNeeded(text, qchars) {
+  // Figure out if we need to quote the string. Don't quote a string which
+  // already appears to be quoted.
+  let needsQuote = false;
+
+  if (!(text[0] == '"' && text[text.length - 1] == '"') && qchars != '') {
+    for (let i = 0; i < text.length; i++) {
+      if (qchars.includes(text[i])) {
+        needsQuote = true;
+        break;
+      }
+    }
+  }
+
+  if (needsQuote)
+    text = '"' + text.replace(/["\\]/g, "\\$&") + '"';
+  return text;
+}
+
 return {
   decode_base64: decode_base64,
   decode_qp: decode_qp,
   kMonthNames: kMonthNames,
+  quoteIfNeeded: quoteIfNeeded,
   stringToTypedArray: stringToTypedArray,
   typedArrayToString: typedArrayToString,
 };

@@ -6,6 +6,7 @@ var fs = require('fs'),
     defineRegExp = /define\(/,
     modules = [
       'mimeutils',
+      'emailutils',
       'structuredHeaders',
       'headerparser',
       'mimeparser',

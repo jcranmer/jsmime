@@ -279,21 +279,7 @@ HeaderEmitter.prototype.addQuotable = function (text, qchars, mayBreakAfter) {
   if (text.length == 0)
     return;
 
-  // Figure out if we need to quote the string. Don't quote a string which
-  // already appears to be quoted.
-  let needsQuote = false;
-
-  if (!(text[0] == '"' && text[text.length - 1] == '"') && qchars != '') {
-    for (let i = 0; i < text.length; i++) {
-      if (qchars.includes(text[i])) {
-        needsQuote = true;
-        break;
-      }
-    }
-  }
-
-  if (needsQuote)
-    text = '"' + text.replace(/["\\]/g, "\\$&") + '"';
+  text = mimeutils.quoteIfNeeded(text, qchars);
   this.addText(text, mayBreakAfter);
 };
 

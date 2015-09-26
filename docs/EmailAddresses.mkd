@@ -1,0 +1,84 @@
+Email Address Notes
+===================
+
+Email addresses have historically been processed incorrectly by wide ranges of
+applications. Properly handling them is greatly complicated by underspecified
+standards and incorrectly-validating applications. The introduction of non-ASCII
+email addresses by both the EAI and IDN standards adds even greater burdens to
+applications attempting to work correctly. This documentation page is an attempt
+to highlight the issues and provide guidelines for handling email addresses
+correctly.
+
+Basics
+------
+
+An email address consists of two pieces: the `localpart` and the `domain`,
+separated by an `@`. While domains have strict validity requirements which are
+typically well-followed (excluding the IDN caveat), the handling of localparts
+often differs greatly between official specification rules and their use in
+practice. Following the specifications exactly is likely to produce surprising
+behavior to users (as well as to developers unaware of the rules), so it is
+recommended to follow the less-strict rules unless there is an overriding need.
+
+Email addresses were originally defined in RFC 821 and RFC 822. This definition
+only allows for email addresses consisting of unaccented Latin characters; the
+ability to use the full range of Unicode characters was granted by the use of
+internationalized domain names (IDN, in short) for the domain and email address
+internationalization (EAI, in short) for the localpart. Support for these
+updates is not universal, and internationalization brings with it a large number
+of other issues beyond the scope of this guide, so support for EAI and IDN
+should not be claimed without testing. Since logic such as detecting whether or
+not two email addresses are the same require much more involved processing if
+EAI and IDN are supported, JSMime provides utility functions to help with this
+processing.
+
+JSMime email API
+----------------
+
+To ease the handling of email addresses in client applications, JSMime provides
+a set of APIs in its emailutils module that directly address the most important
+issues. There are two subtle variants in the API, one that handles email
+addresses in a manner that most end-users would expect and one that handles them
+in a manner necessary for implementing low-level email handling functionality.
+
+The most important of these functions is `canonicalize`, which normalizes email
+addresses into a single form that can be safely stored, and is as resistant to
+future changes in email address formats as is possible. Since `canonicalize` has
+to prefer the ASCII form (see below for why), the function `makeDisplayable` is
+also provided, which converts an email address into a displayable Unicode format
+and also has code to attempt to mitigate Unicode homograph attacks.
+
+To determine validity of email addresses, the function `isValidEmail` is
+provided. This determines well-formedness of email addresses, and is fully IDN
+and EAI aware. Note, however, that a well-formed email address is not a
+guarantee that the address exists; the only way to truly verify an email address
+is to send mail to it and ask the user to certify that mail was received.
+`isValidEmail` has an optional second argument to determine if certain very rare
+forms should be accepted as valid email addresses.
+
+The function `areEquivalent` determines whether or not two email addressess are
+the same. This function takes into account some different possibilities of how
+to write the email address (e.g., ASCII and Unicode variants of domains). By
+default, this function considers email addresses that match case-insensitively
+(e.g., `user@example.invalid` and `USER@example.invalid`) to be the same email
+address, which generally holds true but is in technical violation of the
+standard. This can be turned off by setting the optional third `strict`
+parameter of the function to `true`.
+
+A final function, `splitEmail`, is provided for utility purposes. It returns an
+array consisting of the localpart and the domain name for an email address.
+
+IDN caveats
+-----------
+
+IDN works internally by mapping non-ASCII domains into ASCII domains using a
+specific mangling scheme. Unfortunately, there are two different versions of IDN
+which intentionally use different mangling schemes (and have different
+definitions of valid domains, as well). This results in an unavoidable potential
+compatibility breakage if the underlying version of IDN is changed. JSMime tries
+to mitigate this as much as possible by considering the ASCII form the stable
+form.
+
+Ideally, the browser or underlying engine would expose its IDN handling
+functionality to scripts, but such APIs are not implemented as of this writing.
+A polyfill that follows most of the rules is provided as part of the test suite.

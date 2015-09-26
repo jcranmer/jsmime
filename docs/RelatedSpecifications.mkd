@@ -22,6 +22,8 @@ Structured header interpretation:
   MIME Part 3, Message Header Extensions for Non-ASCII Text
 * [RFC 2231](http://tools.ietf.org/html/rfc2231):
   MIME Parameter Value and Encoded Word Extensions
+* [RFC 5321](http://tools.ietf.org/html/rfc5321):
+  Simple Mail Transfer Protocol
 * [RFC 5322](http://tools.ietf.org/html/rfc5322):
   Internet Message Format
 * [RFC 5536](http://tools.ietf.org/html/rfc5536):
@@ -86,3 +88,4 @@ requirements.
 * RFC 2047 decoding tolerates multibyte characters being split between adjacent
   encoded-words.
 * A quoted string whose contents is a full RFC 2047 encoded-word is decoded.
+* Non-NFC-normalized localparts are not permitted in an email address.

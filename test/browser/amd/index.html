@@ -2,12 +2,21 @@
 <html>
 <head>
   <meta charset="UTF-8" />
+  <script src="../../punycode.js"></script>
+  <script src="../../idna-map.js"></script>
+  <script src="../../uts46.js"></script>
   <script src="../mocha.js"></script>
   <script src="../chai.js"></script>
   <script src="require.js"></script>
   <script src="../node_fs_shim.js"></script>
   <script src="../parse_tests.js"></script>
   <script>
+    URL.domainToASCII = function (domain) {
+      return uts46.toAscii(domain);
+    };
+    URL.domainToUnicode = function (domain) {
+      return uts46.toUnicode(domain);
+    };
     require.config({
       baseUrl: '../../../',
       scriptType: 'text/javascript;version=1.8'
