@@ -310,6 +310,120 @@ suite('headeremitter', function () {
       assert.equal(now.getTime() - now.getMilliseconds(), reparsed.getTime());
     });
   });
+  suite("addParameter", function () {
+    let handler = {
+      reset: function (expected) {
+        this.output = '';
+        this.expected = expected;
+      },
+      deliverData: function (data) { this.output += data; },
+      deliverEOF: function () {
+        assert.equal(this.output, this.expected + '\r\n');
+      }
+    };
+    let header_tests = [
+      [["key", {"param": "5"}], "key; param=5"],
+      [["key", {"param": "has a space"}], 'key; param="has a space"'],
+      [["key", {"param": "very long value here"}],
+        'key;\r\n param="very long value here"'],
+      [["key", {"param": "an extremely long value here"}],
+        'key;\r\n param="an extremely long value here"'],
+      [["key", {"p1": "100", "p2": "50"}], "key; p1=100; p2=50"],
+      [["multipart/related", {"boundary": "---===_boundary_string"}],
+        'multipart/related;\r\n boundary=---===_boundary_string'],
+    ];
+    header_tests.forEach(function (data) {
+      arrayTest(data, function () {
+        let emitter = headeremitter.makeStreamingEmitter(handler, {
+          softMargin: 30,
+          useASCII: false
+        });
+        handler.reset(data[1]);
+        emitter.addText(data[0][0], false);
+        for (let key in data[0][1]) {
+          emitter.addParameter(key, data[0][1][key]);
+        }
+        emitter.finish(true);
+      });
+    });
+  });
+  suite("addParameter (RFC 2231)", function () {
+    let handler = {
+      reset: function (expected) {
+        this.output = '';
+        this.expected = expected;
+      },
+      deliverData: function (data) { this.output += data; },
+      deliverEOF: function () {
+        assert.equal(this.output, this.expected + '\r\n');
+      }
+    };
+    let header_tests = [
+      // Test quoting, with otherwise fully-ASCII characters
+      [["key", {"param": "5"}], "key; param=5"],
+      [["key", {"param": "%"}], "key; param=%"],
+      [["key", {"param": "has a space"}], 'key; param="has a space"'],
+      [["key", {"param": "very long value here"}],
+        'key;\r\n param="very long value here"'],
+      [["key", {"param": "an extremely long value here"}],
+        'key;\r\n param*0="an extremely long va";\r\n param*1="lue here"'],
+      [["key", {"param": "an extremely long value here"}],
+        'key;\r\n param*0="an extremely long va";\r\n param*1="lue here"'],
+      [["key", {"file": "/path/to/some/very/deep/path/with a space"}],
+        'key;\r\n file*0=/path/to/some/very/de;\r\n' +
+                ' file*1="ep/path/with a space"'],
+
+      // Test the presence of non-ASCII yet non-continuing 2231 scenarios.
+      [["key", {"param": "\ud83d\udca9"}],
+        "key;\r\n param*=UTF-8''%f0%9f%92%a9"],
+      [["key", {"param": "\u00e3 %"}],
+        "key;\r\n param*=UTF-8''%c3%a3%20%25"],
+
+      // Test that we don't break in the middle of a %-sign
+      [["key", {"param": "aaa\ud83d\udca9"}],
+        "key;\r\n param*0*=UTF-8''aaa%f0%9f%92;\r\n param*1*=%a9"],
+      [["key", {"param": "aaaa\ud83d\udca9"}],
+        "key;\r\n param*0*=UTF-8''aaaa%f0%9f;\r\n param*1*=%92%a9"],
+      [["key", {"param": "aaaaa\ud83d\udca9"}],
+        "key;\r\n param*0*=UTF-8''aaaaa%f0%9f;\r\n param*1*=%92%a9"],
+      [["key", {"param": "aaaaaa\ud83d\udca9"}],
+        "key;\r\n param*0*=UTF-8''aaaaaa%f0%9f;\r\n param*1*=%92%a9"],
+      [["key", {"param": "aaaaaaa\ud83d\udca9"}],
+        "key;\r\n param*0*=UTF-8''aaaaaaa%f0;\r\n param*1*=%9f%92%a9"],
+
+      // Test that we work even on 2-digit continuation numbers
+      [["key", {"param": "\ud83d\udca9".repeat(20)}],
+        "key;\r\n param*0*=UTF-8''%f0%9f%92%a9;\r\n" +
+                " param*1*=%f0%9f%92%a9%f0%9f;\r\n" +
+                " param*2*=%92%a9%f0%9f%92%a9;\r\n" +
+                " param*3*=%f0%9f%92%a9%f0%9f;\r\n" +
+                " param*4*=%92%a9%f0%9f%92%a9;\r\n" +
+                " param*5*=%f0%9f%92%a9%f0%9f;\r\n" +
+                " param*6*=%92%a9%f0%9f%92%a9;\r\n" +
+                " param*7*=%f0%9f%92%a9%f0%9f;\r\n" +
+                " param*8*=%92%a9%f0%9f%92%a9;\r\n" +
+                " param*9*=%f0%9f%92%a9%f0%9f;\r\n" +
+                " param*10*=%92%a9%f0%9f%92%a9;\r\n" +
+                " param*11*=%f0%9f%92%a9%f0%9f;\r\n" +
+                " param*12*=%92%a9%f0%9f%92%a9;\r\n" +
+                " param*13*=%f0%9f%92%a9"],
+    ];
+    header_tests.forEach(function (data) {
+      arrayTest(data, function () {
+        let emitter = headeremitter.makeStreamingEmitter(handler, {
+          softMargin: 30,
+          useASCII: true
+        });
+        handler.reset(data[1]);
+        emitter.addText(data[0][0], false);
+        for (let key in data[0][1]) {
+          emitter.addParameter(key, data[0][1][key]);
+        }
+        emitter.finish(true);
+      });
+    });
+  });
+
 
   suite("Header lengths", function () {
     let handler = {

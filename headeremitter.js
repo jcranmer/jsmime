@@ -572,6 +572,105 @@ HeaderEmitter.prototype.addAddresses = function (addresses) {
   }
 };
 
+const PARAMETER_QUOTES = "()<>[]:;@\\,\" !";
+
+/**
+ * Add a name=value parameter to the current header, prefixed by a semicolon. If
+ * the current emitter is specified to only output ASCII, then RFC 2231 (both
+ * continuations and percent-encoding) will be used for the value. Otherwise, no
+ * RFC 2231 encoding will be performed.
+ *
+ * @public
+ * @param {String} name  The name of the parameter to add.
+ * @param {String} value The value of the parameter to add.
+ */
+HeaderEmitter.prototype.addParameter = function (name, value) {
+  this.addText(";", true);
+
+  // First, figure out if we need to use 2231 percent-encoding.
+  let usingEncoding = false;
+  let length = name.length + 1; // name=
+  if (this._useASCII && nonAsciiRe.test(value)) {
+    usingEncoding = true;
+    let encodedText = new TextEncoder("UTF-8").encode(value);
+    let binaryString = mimeutils.typedArrayToString(encodedText);
+    value = "UTF-8''";
+    for (let i = 0; i < encodedText.length; i++) {
+      if (encodedText[i] < 0x20 || encodedText[i] >= 0x7F ||
+          (PARAMETER_QUOTES + "%").includes(binaryString[i])) {
+        let ch = encodedText[i];
+        value += "%" + hexString[(ch & 0xf0) >> 4] + hexString[ch & 0x0f];
+      } else {
+        value += binaryString[i];
+      }
+    }
+    length += value.length + 1; // Extra for the '*' we need
+  } else {
+    let encodedValue = mimeutils.quoteIfNeeded(value, PARAMETER_QUOTES);
+    length += encodedValue.length;
+  }
+
+  // If we have the space to do this without continuations, do so. Check using
+  // the soft margin rather than the current line length--we'd rather break to
+  // the next line for extra space. If we're not using 2231 encoding, do this
+  // unconditionally.
+  if (length < this._softMargin - 1 || !this._useASCII) {
+    let finalValue = name + (usingEncoding ? '*' : '') + '=' +
+      mimeutils.quoteIfNeeded(value, PARAMETER_QUOTES);
+    this.addText(finalValue, false);
+    return;
+  }
+
+  // The rest of this function deals with the scenario where we have to emit
+  // RFC 2231 continuations. In essence, we're going to go through the string,
+  // chopping off lines individually and appending them to the text,
+  // incrementing the continuation number as we go. Unusually for this file,
+  // this is going to be the most relaxed about violating the
+  // soft margin, since there are too many things to keep track of here.
+
+  // Force a line break--handling a partial initial line is too complicated.
+  this._commitLine(this._currentLine.length);
+
+  let prefix = name + "*", suffix = (usingEncoding ? '*' : '') + '=';
+  let lineLength = prefix.length + suffix.length + 2; // SP and ;
+  let continuationNumber = 0;
+  while (value.length > 0) {
+    this.addText(prefix + (continuationNumber++) + suffix, false);
+    let maxChars = this._softMargin - (this._currentLine.length + 1); // Add ';'
+
+    // Try to use as much text as possible, but don't break in the middle of a
+    // %xx pair if we're using encoding.
+    let breakPoint = Math.min(maxChars, value.length);
+    if (breakPoint < value.length && usingEncoding) {
+      if (value[breakPoint - 1] == '%')
+        breakPoint--;
+      else if (value[breakPoint - 2] == '%')
+        breakPoint -= 2;
+    }
+    // Quote the text if needed. If we previously encoded, it should never be
+    // needed, but if we otherwise didn't need RFC 2231 encoding, we may have
+    // neglected to quote it earlier. This quoting lets us potentially break
+    // the soft margin, but that is acceptable loss at this point.
+    this.addQuotable(value.substring(0, breakPoint), PARAMETER_QUOTES, false);
+
+    value = value.substring(breakPoint);
+    if (value.length > 0)
+      this.addText(";", true);
+  }
+};
+
+/**
+ * Add a collection of name=value parameters to the current header, each
+ * prefixed by a semicolon.
+ *
+ * @public
+ * @param {Map(String -> String)} values The set of name, value pairs to add.
+ */
+HeaderEmitter.prototype.addParameters = function (values) {
+  for (let [param, value] of values)
+    this.addParameter(param, value);
+};
+
 /**
  * Add an unstructured header value to the output. This effectively means only
  * inserting line breaks were necessary, and using RFC 2047 encoding where
