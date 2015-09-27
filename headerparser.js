@@ -1071,6 +1071,13 @@ for (let pair of structuredHeaders.decoders) {
  * - Subject
  *
  * The ad-hoc headers and their resulting formats are as follows:
+ * Content-Disposition: returns a JS Map of parameter names (in lower case) to
+ * their values, along with the following extra property defined on the map:
+ * - isAttachment: true if the disposition should be treated as an attachment
+ * RFC 2047 and RFC 2231 decoding is applied where appropriate. The values of
+ * creation-date, modification-date, and read-date are represented as Date
+ * values, while size is represented as an integer.
+ *
  * Content-Transfer-Encoding: the first value is converted to lower-case.
  *
  * Content-Type: returns a JS Map of parameter names (in lower case) to their

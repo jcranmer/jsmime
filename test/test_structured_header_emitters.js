@@ -36,6 +36,14 @@ function makeCT(type, params) {
   return map;
 }
 
+function makeCD(isAttachment, params) {
+  let map = new Map();
+  for (var key in params)
+    map.set(key, params[key]);
+  map.isAttachment = isAttachment;
+  return map;
+}
+
 suite('Structured header emitters', function () {
   // Ad-hoc header tests
   testHeader("Content-Type", [
@@ -51,6 +59,22 @@ suite('Structured header emitters', function () {
     ["", ""],
     ["8bit", "8bit"],
     ["invalid", "invalid"]
+  ]);
+
+  testHeader("Content-Disposition", [
+    ["inline", "inline"],
+    ["attachment; filename=afile.txt", "attachment; filename=afile.txt"],
+    [makeCD(true, {}), "attachment"],
+    [makeCD(false, {}), "inline"],
+    [makeCD(true, {filename: "afile.txt"}), "attachment; filename=afile.txt"],
+    [makeCD(false, {filename: "quote me"}), 'inline; filename="quote me"'],
+    [makeCD(false, {filename: "\u65E5\u672C"}),
+      "inline; filename*=UTF-8''%e6%97%a5%e6%9c%ac"],
+    [makeCD(false, {size: 100}), "inline; size=100"],
+    [makeCD(false, {"read-date": new MockDate("2008-01-01T00:00:00+0500")}),
+      'inline; read-date="Tue, 1 Jan 2008 00:00:00 +0500"'],
+    [makeCD(true, {filename: "filename.txt", size: 100}),
+      "attachment; filename=filename.txt; size=100"],
   ]);
 
   // Non-ad-hoc header tests

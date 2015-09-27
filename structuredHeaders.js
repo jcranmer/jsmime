@@ -107,6 +107,49 @@ function emitContentType(contentType) {
   this.addParameters(contentType);
 }
 addHeader("Content-Type", parseContentType, emitContentType);
+// RFC 2183
+function parseDisposition(value) {
+  let headerparser = this;
+  let params = parseParameterHeader.call(this, value, true, true);
+  let structure = new Map();
+  structure.isAttachment = params.preSemi.toLowerCase() != "inline";
+  params.forEach(function (value, name) {
+    name = name.toLowerCase();
+    if (name == "creation-date" || name == "modification-date" ||
+        name == "read-date") {
+      value = headerparser.parseDateHeader(value);
+    } else if (name == "size") {
+      value = parseInt(value);
+    }
+    structure.set(name, value);
+  });
+  return structure;
+}
+function emitDisposition(value) {
+  // Be forgiving and accept string variants of the content-disposition.
+  if (typeof value == "string")
+    value = parseDisposition.call(headerparser(), [value]);
+
+  this.addText(value.isAttachment ? "attachment" : "inline", false);
+  let emitter = this;
+  let stringMap = new Map();
+  value.forEach(function (value, name) {
+    // Date headers require special stringification. Since their values can't
+    // require 2231 encoding, just emit the parameter semantics directly.
+    // TODO: This probably should be instanceof Date, but MockDate fails that
+    // test, and it may require ES6 @@create semantics to make the test work.
+    if (typeof value == 'object' && 'getTimezoneOffset' in value) {
+      emitter.addText(";", true);
+      emitter.addText(name + '="', false);
+      emitter.addDate(value);
+      emitter.addText('"', false);
+    } else {
+      stringMap.set(name, String(value));
+    }
+  });
+  this.addParameters(stringMap);
+}
+addHeader("Content-Disposition", parseDisposition, emitDisposition);
 
 // Unstructured headers (just decode RFC 2047 for the first header value)
 function parseUnstructured(values) {

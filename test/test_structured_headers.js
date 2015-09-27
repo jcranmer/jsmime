@@ -43,6 +43,14 @@ function makeCT(media, sub, params) {
     object.set(k, params[k]);
   return object;
 }
+function makeCD(isAttachment, params) {
+  var object = new Map();
+  object.isAttachment = isAttachment;
+  for (let k in params)
+    object.set(k, params[k]);
+  return object;
+}
+
 suite('Structured headers', function () {
   // Ad-hoc header tests
   testHeader('Content-Type', [
@@ -88,6 +96,188 @@ suite('Structured headers', function () {
     ['7bit', '7bit'],
     [['7bit', '8bit'], '7bit'],
     ['x-uuencode', 'x-uuencode']
+  ]);
+  testHeader('Content-Disposition', [
+    ['inline', makeCD(false, {})],
+    ['attachment', makeCD(true, {})],
+    ['illegal', makeCD(true, {})],
+    ['attachment; filename="filename.txt"',
+      makeCD(true, {filename: "filename.txt"})],
+    ['attachment; filename="filename.txt"; filename*=UTF-8\'\'oxyg%c3%a8ne.txt',
+      makeCD(true, {filename: "oxyg\xe8ne.txt"})],
+    ['attachment; filename="=?UTF-8?Q?oxyg=c3=a8ne.txt?="',
+      makeCD(true, {filename: "oxyg\xe8ne.txt"})],
+    ['inline; filename="filename.txt"',
+      makeCD(false, {filename: "filename.txt"})],
+    ['attachment; filename=genome.jpeg; ' +
+      'modification-date="Wed, 12 Feb 1997 16:29:51 -0500"', makeCD(true, {
+         filename: "genome.jpeg",
+         "modification-date": new Date("1997-02-12T16:29:51-0500")
+      })],
+    ['inline; size=212', makeCD(false, {size: 212})],
+    // TODO: Disable this test for now, since NaN !== NaN can cause problems for
+    // some assert implementations (notably, the one used in xpcshell).
+    //['inline; size=deadbeef', makeCD(false, {size: NaN})],
+    ['attachment; filename=genome.jpeg; read-date="yesterday"', makeCD(true, {
+         filename: "genome.jpeg",
+         "read-date": new Date(NaN)
+      })],
+    ['attachment; filename=genome.jpeg; ' +
+      'creation-date="31 Dec 98 23:59:60 +0000"', makeCD(true, {
+         filename: "genome.jpeg",
+         "creation-date": new Date("1999-01-01T00:00:00Z")
+      })],
+    ['attachment; filename=genome.jpeg; ' +
+      'screwed-date="31 Dec 98 23:59:60 +0000"', makeCD(true, {
+         filename: "genome.jpeg",
+         "screwed-date": "31 Dec 98 23:59:60 +0000"
+      })],
+    // Testcases following copied from http://greenbytes.de/tech/tc2231/. Some
+    // of the rules (e.g., refusing RFC 2047) don't apply to us since we're not
+    // a browser. We also don't ignore the header on parse errors but rather try
+    // to extract some sense from it.
+    ['"inline"', makeCD(true, {})],
+    ['inline; filename="foo.html"', makeCD(false, {filename: "foo.html"})],
+    ['inline; filename="Not an attachment!"',
+      makeCD(false, {filename: "Not an attachment!"})],
+    ['inline; filename="foo.pdf"', makeCD(false, {filename: "foo.pdf"})],
+    ['attachment', makeCD(true, {})],
+    ['"attachment"', makeCD(true, {})],
+    ['ATTACHMENT', makeCD(true, {})],
+    ['attachment; filename="foo.html"', makeCD(true, {filename: "foo.html"})],
+    ['attachment; filename="0000000000111111111122222"',
+      makeCD(true, {filename: "0000000000111111111122222"})],
+    ['attachment; filename="00000000001111111111222222222233333"',
+      makeCD(true, {filename: "00000000001111111111222222222233333"})],
+    ['attachment; filename="f\oo.html"',
+      makeCD(true, {filename: "foo.html"})],
+    ['attachment; filename="\\"quoting\\" tested.html"',
+      makeCD(true, {filename: '"quoting" tested.html'})],
+    ['attachment; filename="Here\'s a semicolon;.html"',
+      makeCD(true, {filename: "Here's a semicolon;.html"})],
+    ['attachment; foo="bar"; filename="foo.html"',
+      makeCD(true, {foo: "bar", filename: "foo.html"})],
+    ['attachment; foo="\\"\\\\";filename="foo.html"',
+      makeCD(true, {foo: '"\\', filename: "foo.html"})],
+    ['attachment; FILENAME="foo.html"', makeCD(true, {filename: "foo.html"})],
+    ['attachment; filename=foo.html', makeCD(true, {filename: "foo.html"})],
+    ['attachment; filename=foo,bar.html',
+      makeCD(true, {filename: "foo,bar.html"})],
+    ['attachment; filename=foo.html ;', makeCD(true, {filename: "foo.html"})],
+    ['attachment; ;filename=foo', makeCD(true, {filename: "foo"})],
+    ['attachment; filename=foo bar.html', makeCD(true, {filename: "foo"})],
+    ['attachment; filename=\'foo.bar\'', makeCD(true, {filename: "'foo.bar'"})],
+    ['attachment; filename="foo-\xe4.html"',
+      makeCD(true, {filename: "foo-\xe4.html"})],
+    ['attachment; filename="foo-\xc3\xa4.html"',
+      makeCD(true, {filename: "foo-\xc3\xa4.html"})],
+    ['attachment; filename="foo-%41.html"',
+      makeCD(true, {filename: "foo-%41.html"})],
+    ['attachment; filename="50%.html"', makeCD(true, {filename: "50%.html"})],
+    ['attachment; filename="foo-%\\41.html"',
+      makeCD(true, {filename: "foo-%41.html"})],
+    ['attachment; name="foo-%41.html"', makeCD(true, {name: "foo-%41.html"})],
+    ['attachment; filename="\xe3-%41.html"',
+      makeCD(true, {filename: "\xe3-%41.html"})],
+    ['attachment; filename="foo-%c3%a4-%e2%82%ac.html"',
+      makeCD(true, {filename: "foo-%c3%a4-%e2%82%ac.html"})],
+    ['attachment; filename ="foo.html"', makeCD(true, {filename: "foo.html"})],
+    ['attachment; filename="foo.html"; filename="bar.html"',
+      makeCD(true, {filename: "foo.html"})],
+    ['attachment; filename=foo[1](2).html',
+      makeCD(true, {filename: "foo[1](2).html"})],
+    ['attachment; filename=foo-\xe3.html',
+      makeCD(true, {filename: "foo-\xe3.html"})],
+    ['attachment; filename=foo-\xc3\xa4.html',
+      makeCD(true, {filename: "foo-\xc3\xa4.html"})],
+    ['filename=foo.html', makeCD(true, {})],
+    ['x=y; filename=foo.html', makeCD(true, {filename: "foo.html"})],
+    ['"foo; filename=bar;baz"; filename=qux', makeCD(true, {filename: "bar"})],
+    ['filename=foo.html, filename=bar.html', makeCD(true, {})],
+    ['; filename=foo.html', makeCD(true, {filename: "foo.html"})],
+    [': inline; attachment; filename=foo.html',
+      makeCD(true, {filename: "foo.html"})],
+    ['inline; attachment; filename=foo.html',
+      makeCD(false, {filename: "foo.html"})],
+    ['attachment; inline; filename=foo.html',
+      makeCD(true, {filename: "foo.html"})],
+    ['attachment; filename="foo.html".txt',
+      makeCD(true, {filename: "foo.html"})],
+    ['attachment; filename="bar', makeCD(true, {filename: "bar"})],
+    ['attachment; filename=foo"bar;baz"qux', makeCD(true, {filename: "foo"})],
+    ['attachment; filename=foo.html, attachment; filename=bar.html',
+      makeCD(true, {filename: "foo.html,"})],
+    ['attachment; foo=foo filename=bar', makeCD(true, {foo: "foo"})],
+    ['attachment; filename=bar foo=foo ', makeCD(true, {filename: "bar"})],
+    ['attachment filename=bar', makeCD(true, {})],
+    ['filename=foo.html; attachment', makeCD(true, {})],
+    ['attachment; xfilename=foo.html', makeCD(true, {xfilename: "foo.html"})],
+    ['attachment; filename="/foo.html"', makeCD(true, {filename: "/foo.html"})],
+    ['attachment; filename="\\\\foo.html"',
+      makeCD(true, {filename: "\\foo.html"})],
+    ['attachment; creation-date="Wed, 12 Feb 1997 16:29:51 -0500"',
+      makeCD(true, {"creation-date": new Date("1997-02-12T16:29:51-0500")})],
+    ['attachment; modification-date="Wed, 12 Feb 1997 16:29:51 -0500"',
+      makeCD(true, {
+        "modification-date": new Date("1997-02-12T16:29:51-0500")
+      })],
+    ['foobar', makeCD(true, {})],
+    ['attachment; example="filename=example.txt"',
+      makeCD(true, {example: "filename=example.txt"})],
+    ['attachment; filename*=iso-8859-1\'\'foo-%E4.html',
+      makeCD(true, {filename: "foo-\u00e4.html"})],
+    ['attachment; filename*=UTF-8\'\'foo-%c3%a4-%e2%82%ac.html',
+      makeCD(true, {filename: "foo-\u00e4-\u20ac.html"})],
+    ['attachment; filename*=\'\'foo-%c3%a4-%e2%82%ac.html', makeCD(true, {})],
+    ['attachment; filename*=UTF-8\'\'foo-a%cc%88.html',
+      makeCD(true, {filename: "foo-a\u0308.html"})],
+    ['attachment; filename*=iso-8859-1\'\'foo-%c3%a4-%e2%82%ac.html',
+      makeCD(true, {filename: "foo-\xc3\xa4-\xe2\u201a\xac.html"})],
+    ['attachment; filename*=utf-8\'\'foo-%E4.html', makeCD(true, {})],
+    ['attachment; filename *=UTF-8\'\'foo-%c3%a4.html', makeCD(true, {})],
+    ['attachment; filename*= UTF-8\'\'foo-%c3%a4.html',
+      makeCD(true, {filename: "foo-\xe4.html"})],
+    ['attachment; filename* =UTF-8\'\'foo-%c3%a4.html',
+      makeCD(true, {filename: "foo-\xe4.html"})],
+    ['attachment; filename*="UTF-8\'\'foo-%c3%a4.html"',
+      makeCD(true, {filename: "foo-\xe4.html"})],
+    ['attachment; filename*="foo%20bar.html"', makeCD(true, {})],
+    ['attachment; filename*=UTF-8\'foo-%c3%a4.html',
+      makeCD(true, {filename: "foo-\xe4.html"})],
+    ['attachment; filename*=UTF-8\'\'foo%',
+      makeCD(true, {filename: "foo%"})],
+    ['attachment; filename*=UTF-8\'\'f%oo.html',
+      makeCD(true, {filename: "f%oo.html"})],
+    ['attachment; filename*=UTF-8\'\'A-%2541.html',
+      makeCD(true, {filename: "A-%41.html"})],
+    ['attachment; filename*=UTF-8\'\'%5cfoo.html',
+      makeCD(true, {filename: "\\foo.html"})],
+    ['attachment; filename*0="foo."; filename*1="html"',
+      makeCD(true, {filename: "foo.html"})],
+    ['attachment; filename*0="foo"; filename*1="\\b\\a\\r.html"',
+      makeCD(true, {filename: "foobar.html"})],
+    ['attachment; filename*0*=UTF-8\'\'foo-%c3%a4; filename*1=".html"',
+      makeCD(true, {filename: "foo-\u00e4.html"})],
+    ['attachment; filename*0="foo"; filename*01="bar"',
+      makeCD(true, {filename: "foo"})],
+    ['attachment; filename*0="foo"; filename*2="bar"',
+      makeCD(true, {filename: "foo"})],
+    ['attachment; filename*1="foo."; filename*2="html"', makeCD(true, {})],
+    ['attachment; filename*1="bar"; filename*0="foo"',
+      makeCD(true, {filename: "foobar"})],
+    ['attachment; filename="foo-ae.html"; filename*=UTF-8\'\'foo-%c3%a4.html',
+      makeCD(true, {filename: "foo-\u00e4.html"})],
+    ['attachment; filename*=UTF-8\'\'foo-%c3%a4.html; filename="foo-ae.html"',
+      makeCD(true, {filename: "foo-\u00e4.html"})],
+    ['attachment; filename*0*=ISO-8859-15\'\'euro-sign%3d%a4; ' +
+      'filename*=ISO-8859-1\'\'currency-sign%3d%a4',
+      makeCD(true, {filename: "currency-sign=\u00a4"})],
+    ['attachment; foobar=x; filename="foo.html"',
+      makeCD(true, {foobar: "x", filename: "foo.html"})],
+    ['attachment; filename==?ISO-8859-1?Q?foo-=E4.html?=',
+      makeCD(true, {filename: "foo-\u00e4.html"})],
+    ['attachment; filename="=?ISO-8859-1?Q?foo-=E4.html?="',
+      makeCD(true, {filename: "foo-\u00e4.html"})],
   ]);
 
   // Non-ad-hoc header tests
