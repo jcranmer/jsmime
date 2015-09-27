@@ -6,6 +6,14 @@
 define(function (require) {
 "use strict";
 
+// Lazily define headerparser, since headerparser requires us.
+var _headerparser = undefined;
+function headerparser() {
+  if (_headerparser === undefined)
+    _headerparser = require('./headerparser');
+  return _headerparser;
+}
+
 var structuredDecoders = new Map();
 var structuredEncoders = new Map();
 var preferredSpellings = new Map();
@@ -90,7 +98,15 @@ function parseContentType(value) {
   });
   return structure;
 }
-structuredDecoders.set("Content-Type", parseContentType);
+function emitContentType(contentType) {
+  // Be forgiving and accept string variants of the content-type.
+  if (typeof contentType == "string")
+    contentType = parseContentType.call(headerparser(), [contentType]);
+
+  this.addText(contentType.type, false);
+  this.addParameters(contentType);
+}
+addHeader("Content-Type", parseContentType, emitContentType);
 
 // Unstructured headers (just decode RFC 2047 for the first header value)
 function parseUnstructured(values) {

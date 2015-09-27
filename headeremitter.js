@@ -471,6 +471,16 @@ HeaderEmitter.prototype.addHeaderName = function (name) {
  * value is a string, then the header is assumed to be unstructured and the
  * value is added as if {@link addUnstructured} were called.
  *
+ * The structured value of the header is generally the result of parsing a
+ * header value with {@link headerparser.parseStructuredHeader}. For simplicity,
+ * some of the standard headers accept other kinds of values:
+ *
+ * Content-Type accepts either a string value containing the content-type or a
+ * Map of params with a property named type that contains the full typename.
+ *
+ * Addressing headers accept either a single address element or a list of
+ * address elements.
+ *
  * @public
  * @param {String} name  The name of the header.
  * @param          value The structured value of the header.

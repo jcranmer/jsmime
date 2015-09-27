@@ -28,9 +28,24 @@ function testHeader(header, tests) {
   });
 }
 
+function makeCT(type, params) {
+  let map = new Map();
+  for (var key in params)
+    map.set(key, params[key]);
+  map.type = type;
+  return map;
+}
+
 suite('Structured header emitters', function () {
   // Ad-hoc header tests
-  // TODO: add structured encoder tests for Content-Type when it is added.
+  testHeader("Content-Type", [
+    ["text/plain", "text/plain"],
+    ['text/plain; charset="UTF-8"', "text/plain; charset=UTF-8"],
+    [makeCT("text/plain", {}), "text/plain"],
+    [makeCT("text/plain", {charset: "UTF-8"}), "text/plain; charset=UTF-8"],
+    [makeCT("text/plain", {name: "\ud83d\udca9"}),
+     "text/plain; name*=UTF-8''%f0%9f%92%a9"],
+  ]);
 
   testHeader("Content-Transfer-Encoding", [
     ["", ""],
