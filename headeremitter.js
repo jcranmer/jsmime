@@ -275,26 +275,7 @@ HeaderEmitter.prototype.addText = function (text, mayBreakAfter) {
  *                                breakpoint.
  */
 HeaderEmitter.prototype.addQuotable = function (text, qchars, mayBreakAfter) {
-  // No text -> no need to be quoted (prevents strict warning errors).
-  if (text.length == 0)
-    return;
-
-  // Figure out if we need to quote the string. Don't quote a string which
-  // already appears to be quoted.
-  let needsQuote = false;
-
-  if (!(text[0] == '"' && text[text.length - 1] == '"') && qchars != '') {
-    for (let i = 0; i < text.length; i++) {
-      if (qchars.includes(text[i])) {
-        needsQuote = true;
-        break;
-      }
-    }
-  }
-
-  if (needsQuote)
-    text = '"' + text.replace(/["\\]/g, "\\$&") + '"';
-  this.addText(text, mayBreakAfter);
+  this.addText(mimeutils.quoteIfNeeded(text, qchars), mayBreakAfter);
 };
 
 /**
